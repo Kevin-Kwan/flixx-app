@@ -1,5 +1,18 @@
 const globalState = {
   currentPage: window.location.pathname,
+  search: {
+    term: '',
+    type: '',
+    page: 1,
+    totalPages: 1,
+  },
+  api: {
+    // Yes, I know that this api key is public. This is for learning purposes.
+    // In the real world, we would have an .env file that holds this key.
+    // The owner of this key is not too worried about it being public.
+    key: 'a475d94871bffa9300c2bfaf9e156428',
+    url: 'https://api.themoviedb.org/3/',
+  },
 };
 
 // Highlight active link
@@ -45,7 +58,7 @@ async function displayPopularMovies() {
           <div class="card-body">
             <h5 class="card-title">${movie.title}</h5>
             <p class="card-text">
-              <small class="text-muted">Release: ${movie.release_data}</small>
+              <small class="text-muted">Release: ${movie.release_date}</small>
             </p>
           </div>
         </div>
@@ -243,6 +256,23 @@ function displayBackgroundImage(type, backdropPath) {
   }
 }
 
+// search movies/shows
+async function search() {
+  console.log('searching');
+  const queryString = window.location.search;
+  const urlParams = new URLSearchParams(queryString);
+
+  globalState.search.type = urlParams.get('type');
+  globalState.search.term = urlParams.get('search-term');
+
+  if (globalState.search.term !== '' && globalState.search.term !== null) {
+    const results = await searchAPIData();
+    console.log(results);
+  } else {
+    showAlert('Please enter a search term');
+  }
+}
+
 // Display Slider Movies
 async function displaySlider() {
   const { results } = await fetchAPIData('movie/now_playing');
@@ -291,11 +321,8 @@ function initSwiper() {
 }
 // Fetch data from the TMDB API
 async function fetchAPIData(endpoint) {
-  // Yes, I know that this api key is public. This is for learning purposes.
-  // In the real world, we would have an .env file that holds this key.
-  // The owner of this key is not too worried about it being public.
-  const API_KEY = 'a475d94871bffa9300c2bfaf9e156428';
-  const API_URL = 'https://api.themoviedb.org/3/';
+  const API_KEY = globalState.api.key;
+  const API_URL = globalState.api.url;
   showSpinner();
   const response = await fetch(
     `${API_URL}${endpoint}?api_key=${API_KEY}&language=en-US`
@@ -303,6 +330,31 @@ async function fetchAPIData(endpoint) {
   const data = await response.json();
   hideSpinner();
   return data;
+}
+
+// Search data from the TMDB API
+async function searchAPIData() {
+  const API_KEY = globalState.api.key;
+  const API_URL = globalState.api.url;
+  showSpinner();
+  const response = await fetch(
+    `${API_URL}search/${globalState.search.type}?api_key=${API_KEY}&language=en-US&query=${globalState.search.term}`
+  );
+  const data = await response.json();
+  hideSpinner();
+  return data;
+}
+
+// Show Alert
+function showAlert(message, className) {
+  const alertElement = document.createElement('div');
+  alertElement.classList.add('alert', className);
+  alertElement.appendChild(document.createTextNode(message));
+  document.querySelector('#alert').appendChild(alertElement);
+
+  setTimeout(() => {
+    alertElement.remove();
+  }, 5000);
 }
 
 function addCommas(number) {
@@ -326,8 +378,8 @@ function init() {
     case '/tv-details.html':
       displayShowDetails();
       break;
-    case '/search':
-      console.log('Search');
+    case '/search.html':
+      search();
       break;
   }
   highlightActiveLink();
