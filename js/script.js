@@ -5,6 +5,7 @@ const globalState = {
     type: '',
     page: 1,
     totalPages: 1,
+    totalResults: 0,
   },
   api: {
     // Yes, I know that this api key is public. This is for learning purposes.
@@ -266,8 +267,12 @@ async function search() {
   globalState.search.term = urlParams.get('search-term');
 
   if (globalState.search.term !== '' && globalState.search.term !== null) {
-    const { results, total_pages, page } = await searchAPIData();
+    const { results, page, total_pages, total_results } = await searchAPIData();
     // console.log(results);
+    globalState.search.page = page;
+
+    globalState.search.totalPages = total_pages;
+    globalState.search.totalResults = total_results;
     if (results.length == 0) {
       showAlert('No results found.', 'alert-error');
       return;
@@ -280,6 +285,9 @@ async function search() {
 }
 
 function displaySearchResults(results) {
+  document.querySelector('#search-results').innerHTML = '';
+  document.querySelector('#search-results-heading').innerHTML = '';
+  document.querySelector('#pagination').innerHTML = '';
   results.forEach((result) => {
     const div = document.createElement('div');
     div.classList.add('card');
@@ -317,7 +325,38 @@ function displaySearchResults(results) {
           </div>
         </div>
         `;
+    document.querySelector(
+      '#search-results-heading'
+    ).innerHTML = `<h2>Showing ${results.length} out of ${globalState.search.totalResults} Results for "${globalState.search.term}"</h2>`;
     document.querySelector('#search-results').appendChild(div);
+  });
+  displayPagination();
+}
+
+function displayPagination() {
+  const div = document.createElement('div');
+  div.classList.add('pagination');
+  div.innerHTML = `          <button class="btn btn-primary" id="prev">Prev</button>
+          <button class="btn btn-primary" id="next">Next</button>
+          <div class="page-counter">Page ${globalState.search.page} of ${globalState.search.totalPages}</div>`;
+  document.querySelector('#pagination').appendChild(div);
+  // disable prev button if on the first page
+  if (globalState.search.page === 1) {
+    document.querySelector('#prev').disabled = true;
+  }
+
+  if (globalState.search.page === globalState.search.totalPages) {
+    document.querySelector('#next').disabled = true;
+  }
+  document.querySelector('#next').addEventListener('click', async () => {
+    globalState.search.page++;
+    const { results, total_pages } = await searchAPIData();
+    displaySearchResults(results);
+  });
+  document.querySelector('#prev').addEventListener('click', async () => {
+    globalState.search.page--;
+    const { results, total_pages } = await searchAPIData();
+    displaySearchResults(results);
   });
 }
 
@@ -386,7 +425,7 @@ async function searchAPIData() {
   const API_URL = globalState.api.url;
   showSpinner();
   const response = await fetch(
-    `${API_URL}search/${globalState.search.type}?api_key=${API_KEY}&language=en-US&query=${globalState.search.term}&page=1`
+    `${API_URL}search/${globalState.search.type}?api_key=${API_KEY}&language=en-US&query=${globalState.search.term}&page=${globalState.search.page}`
   );
   const data = await response.json();
   hideSpinner();
